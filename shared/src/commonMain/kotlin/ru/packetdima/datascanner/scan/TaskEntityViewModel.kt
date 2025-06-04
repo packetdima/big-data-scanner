@@ -21,8 +21,8 @@ import ru.packetdima.datascanner.common.LogMarkers
 import ru.packetdima.datascanner.db.DatabaseConnector
 import ru.packetdima.datascanner.db.models.*
 import ru.packetdima.datascanner.scan.common.FilesCounter
+import ru.packetdima.datascanner.scan.common.connectors.FoundedFile
 import ru.packetdima.datascanner.scan.functions.UserSignature
-import java.io.File
 import kotlin.time.DurationUnit
 
 private val logger = KotlinLogging.logger {}
@@ -251,10 +251,18 @@ class TaskEntityViewModel(
                         ) {
                             it[TaskFiles.state] = TaskState.STOPPED
                         }
-                        if(dbTask.pauseDate == null)
+                        if (dbTask.pauseDate == null)
                             dbTask.pauseDate = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
 
                         _pausedAt.value = dbTask.pauseDate
+                    }
+
+                    TaskState.PENDING -> {
+                        if(dbTask.taskState > TaskState.PENDING) {
+                            if (dbTask.pauseDate == null)
+                                dbTask.pauseDate = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                            _pausedAt.value = dbTask.pauseDate
+                        }
                     }
 
                     TaskState.SCANNING -> {
@@ -353,14 +361,14 @@ class TaskEntityViewModel(
                     setState(TaskState.SEARCHING)
                 val filesCounters = path.split(";")
                     .map { dir ->
-                        scanDirectory(File(dir), extensions) {
+                        scanDirectory(dir, extensions) {
                             taskScope.launch {
                                 database.transaction {
                                     TaskFile.new {
                                         this.task = dbTask
                                         this.path = it.path
                                         this.state = TaskState.PENDING
-                                        this.size = it.length()
+                                        this.size = it.size
                                     }
                                 }
                             }
@@ -396,32 +404,13 @@ class TaskEntityViewModel(
         }
     }
 
-    private fun scanDirectory(
-        dir: File,
+    private suspend fun scanDirectory(
+        dir: String,
         extensions: List<String>,
-        fileSelected: (file: File) -> Unit
-    ): FilesCounter {
-        var filesCounter = FilesCounter()
-
-        if (dir.isDirectory) {
-            val items = dir.listFiles() ?: return FilesCounter()
-            for (item in items) {
-                if (item.isDirectory) {
-                    try {
-                        filesCounter += scanDirectory(item, extensions, fileSelected)
-                    } catch (_: Exception) {
-
-                    }
-                } else if (extensions.any { item.extension == it }) {
-                    fileSelected(item)
-                }
-
-                filesCounter.add(item.length())
-            }
-        } else if (extensions.any { dir.extension == it }) {
-            fileSelected(dir)
-            filesCounter.add(dir.length())
-        }
-        return filesCounter
-    }
+        fileSelected: (file: FoundedFile) -> Unit
+    ): FilesCounter = dbTask.connector.scanDirectory(
+        dir = dir,
+        extensions = extensions,
+        fileSelected = fileSelected
+    )
 }

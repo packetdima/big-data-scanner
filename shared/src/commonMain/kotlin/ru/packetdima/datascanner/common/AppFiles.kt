@@ -40,5 +40,5 @@ object AppFiles {
             }
         )
         .toFile()
-    val MigrationsDirectory: String = WorkDirPath.resolve("migrations").absolutePathString()
+    val MigrationsDirectory: Path = WorkDirPath.resolve("migrations")
 }

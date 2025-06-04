@@ -16,11 +16,14 @@ import ru.packetdima.datascanner.common.LogMarkers
 import ru.packetdima.datascanner.common.ScanSettings
 import ru.packetdima.datascanner.db.DatabaseConnector
 import ru.packetdima.datascanner.db.models.*
+import ru.packetdima.datascanner.scan.common.connectors.ConnectorS3
+import ru.packetdima.datascanner.scan.common.connectors.IConnector
 import ru.packetdima.datascanner.scan.common.files.FileType
 import ru.packetdima.datascanner.scan.functions.CertDetectFun
 import ru.packetdima.datascanner.scan.functions.CodeDetectFun
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.io.path.absolutePathString
 
 private val logger = KotlinLogging.logger {}
 
@@ -57,14 +60,30 @@ class ScanService : KoinComponent {
                     "Database migration required."
                 }
                 migrationRequired = true
-                if (!File(AppFiles.MigrationsDirectory).exists()) {
-                    File(AppFiles.MigrationsDirectory).mkdir()
+                if (!File(AppFiles.MigrationsDirectory.absolutePathString()).exists()) {
+                    File(AppFiles.MigrationsDirectory.absolutePathString()).mkdir()
                 }
-                MigrationUtils.generateMigrationScript(
-                    Tasks,
-                    scriptDirectory = AppFiles.MigrationsDirectory,
-                    scriptName = "V2__AddMissingColumns",
-                )
+                if (!File(
+                        AppFiles
+                            .MigrationsDirectory
+                            .resolve("V2__AddMissingColumns.sql")
+                            .absolutePathString()
+                    )
+                        .exists()
+                ) {
+                    MigrationUtils.generateMigrationScript(
+                        Tasks,
+                        scriptDirectory = AppFiles.MigrationsDirectory.absolutePathString(),
+                        scriptName = "V2__AddMissingColumns",
+                    )
+                } else {
+                    MigrationUtils.generateMigrationScript(
+                        Tasks,
+                        scriptDirectory = AppFiles.MigrationsDirectory.absolutePathString(),
+                        scriptName = "V3__AddConnectors",
+                    )
+                }
+
             }
         }
 
@@ -141,6 +160,19 @@ class ScanService : KoinComponent {
                         }
                     }
 
+                    if(task.taskState == TaskState.SEARCHING) {
+                        task.pauseDate = task.startedAt
+
+                        taskEntity.setState(TaskState.PENDING)
+                        TaskFiles.deleteWhere {
+                            TaskFiles.task.eq(task.id)
+                        }
+
+                        logger.info(throwable = null, LogMarkers.UserAction) {
+                            "Reset task after restart (${taskEntity.id.value}) ${taskEntity.path.value}"
+                        }
+                    }
+
                     tasks.add(taskEntity)
                 }
             }
@@ -198,14 +230,15 @@ class ScanService : KoinComponent {
         path: String,
         extensions: List<FileType>? = null,
         detectFunctions: List<IDetectFunction>? = null,
-        fastScan: Boolean? = null
+        fastScan: Boolean? = null,
+        connector: IConnector
     ): TaskEntityViewModel {
-
         return database.transaction {
             val task = Task.new {
                 this.path = path
                 this.taskState = TaskState.PENDING
                 this.fastScan = fastScan ?: scanSettings.fastScan.value
+                this.connector = connector
             }
             logger.info(throwable = null, LogMarkers.UserAction) {
                 "Creating task. " +
@@ -229,7 +262,13 @@ class ScanService : KoinComponent {
                                     ).joinToString { it.name }
                         }. " +
                         "Fast scan: ${fastScan ?: scanSettings.fastScan.value}. " +
-                        "Threads: ${appSettings.threadCount.value}"
+                        "Threads: ${appSettings.threadCount.value}. " +
+                        "Connector: $connector ." +
+                        if (connector is ConnectorS3) {
+                            "Endpoind: ${connector.endpointStr}. " +
+                                    "Bucket: ${connector.bucketStr}. " +
+                                    "Region: ${connector.regionStr}. "
+                        } else ""
             }
             if (extensions != null) {
                 extensions.forEach { ext ->
@@ -300,6 +339,7 @@ class ScanService : KoinComponent {
     }
 
     suspend fun deleteTask(task: TaskEntityViewModel) {
+        task.stop()
         logger.info(throwable = null, LogMarkers.UserAction) {
             "Delete task. ID: ${task.id.value}. Path: \"${task.path.value}\""
         }

@@ -72,7 +72,6 @@ fun ScansScreen(onTaskClick: (Int) -> Unit) {
                             listOf(
                                 TaskState.SCANNING,
                                 TaskState.SEARCHING,
-                                TaskState.PENDING,
                             )
                         )
                     } else {
@@ -80,7 +79,6 @@ fun ScansScreen(onTaskClick: (Int) -> Unit) {
                             listOf(
                                 TaskState.SCANNING,
                                 TaskState.SEARCHING,
-                                TaskState.PENDING,
                             )
                         )
                     }
@@ -89,8 +87,10 @@ fun ScansScreen(onTaskClick: (Int) -> Unit) {
                     paused = !paused
                     if (paused) {
                         filterTaskStates.add(TaskState.STOPPED)
+                        filterTaskStates.add(TaskState.PENDING)
                     } else {
                         filterTaskStates.remove(TaskState.STOPPED)
+                        filterTaskStates.remove(TaskState.PENDING)
                     }
                 },
                 onErrorClick = {

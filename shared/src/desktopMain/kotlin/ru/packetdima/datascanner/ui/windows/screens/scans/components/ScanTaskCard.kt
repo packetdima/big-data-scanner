@@ -22,14 +22,17 @@ import androidx.compose.ui.unit.sp
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import ru.packetdima.datascanner.db.models.TaskState
 import ru.packetdima.datascanner.resources.Res
 import ru.packetdima.datascanner.resources.Task_FoundAttributes
+import ru.packetdima.datascanner.resources.aws_s3
 import ru.packetdima.datascanner.scan.TaskEntityViewModel
 import ru.packetdima.datascanner.scan.TaskFilesViewModel
+import ru.packetdima.datascanner.scan.common.connectors.ConnectorS3
 import ru.packetdima.datascanner.ui.extensions.color
 import ru.packetdima.datascanner.ui.extensions.icon
 import kotlin.time.DurationUnit
@@ -73,7 +76,7 @@ fun ScanTaskCard(
     val scanTime = if (startedAt != null) {
         when (state) {
             TaskState.COMPLETED -> finishedAt!!.toInstant(TimeZone.currentSystemDefault()) - startedAtInstant!! - deltaDuration
-            TaskState.STOPPED -> pausedAtInstant!! - startedAtInstant!! - deltaDuration
+            TaskState.STOPPED, TaskState.PENDING -> (pausedAtInstant ?: startedAtInstant!!) - startedAtInstant!! - deltaDuration
             else -> currentTime - startedAtInstant!! - deltaDuration
         }
             .toComponents { days, hours, minutes, seconds, _ ->
@@ -137,6 +140,17 @@ fun ScanTaskCard(
                         contentDescription = null,
                         tint = state.color()
                     )
+
+                    when(taskEntity.dbTask.connector) {
+                        is ConnectorS3 -> {
+                            Icon(
+                                painter = painterResource(Res.drawable.aws_s3),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(32.dp)
+                            )
+                        }
+                    }
 
                     Text(
                         text = path,

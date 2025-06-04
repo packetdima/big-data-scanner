@@ -29,6 +29,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format.char
 import kotlinx.datetime.toInstant
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
@@ -38,6 +39,7 @@ import ru.packetdima.datascanner.db.models.TaskState
 import ru.packetdima.datascanner.resources.*
 import ru.packetdima.datascanner.scan.ScanService
 import ru.packetdima.datascanner.scan.TaskFilesViewModel
+import ru.packetdima.datascanner.scan.common.connectors.ConnectorS3
 import ru.packetdima.datascanner.scan.common.createDialogSettings
 import ru.packetdima.datascanner.scan.common.writer.ResultWriter
 import ru.packetdima.datascanner.ui.dialogs.DesktopAlertDialog
@@ -119,7 +121,7 @@ fun ScanResultScreen(
     val scanTime = if (startedAt != null) {
         when (state) {
             TaskState.COMPLETED -> finishedAt!!.toInstant(TimeZone.currentSystemDefault()) - startedAtInstant!! - deltaDuration
-            TaskState.STOPPED -> pausedAtInstant!! - startedAtInstant!! - deltaDuration
+            TaskState.STOPPED, TaskState.PENDING -> (pausedAtInstant ?: startedAtInstant!!) - startedAtInstant!! - deltaDuration
             else -> currentTime - startedAtInstant!! - deltaDuration
         }
             .toComponents { days, hours, minutes, seconds, _ ->
@@ -247,6 +249,17 @@ fun ScanResultScreen(
                                 imageVector = Icons.Outlined.ArrowBackIosNew,
                                 contentDescription = null
                             )
+                        }
+
+                        when(task.dbTask.connector) {
+                            is ConnectorS3 -> {
+                                Icon(
+                                    painter = painterResource(Res.drawable.aws_s3),
+                                    contentDescription = "AWS S3",
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                )
+                            }
                         }
 
                         Text(
@@ -395,7 +408,7 @@ fun ScanResultScreen(
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if(busy || state in listOf(TaskState.LOADING, TaskState.SEARCHING, TaskState.PENDING)) {
+                    if(busy || state in listOf(TaskState.LOADING, TaskState.SEARCHING)) {
                         CircularProgressIndicator(
                             modifier = Modifier
                                 .size(40.dp)
@@ -412,6 +425,7 @@ fun ScanResultScreen(
                                             scanService.stopTask(task)
 
                                         TaskState.STOPPED -> scanService.resumeTask(task)
+                                        TaskState.PENDING -> scanService.startTask(task)
                                         else -> scanService.rescanTask(task)
                                     }
                                 },
@@ -419,8 +433,8 @@ fun ScanResultScreen(
                         ) {
                             Icon(
                                 imageVector = when (state) {
-                                    TaskState.SEARCHING, TaskState.SCANNING, TaskState.LOADING, TaskState.PENDING -> Icons.Outlined.Pause
-                                    TaskState.STOPPED -> Icons.Outlined.PlayArrow
+                                    TaskState.SEARCHING, TaskState.SCANNING, TaskState.LOADING -> Icons.Outlined.Pause
+                                    TaskState.STOPPED, TaskState.PENDING -> Icons.Outlined.PlayArrow
                                     else -> Icons.Outlined.RestartAlt
                                 },
                                 contentDescription = null

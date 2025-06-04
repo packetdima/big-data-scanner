@@ -23,10 +23,14 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
+import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.koinInject
 import ru.packetdima.datascanner.db.models.TaskState
+import ru.packetdima.datascanner.resources.Res
+import ru.packetdima.datascanner.resources.aws_s3
 import ru.packetdima.datascanner.scan.ScanService
 import ru.packetdima.datascanner.scan.TaskEntityViewModel
+import ru.packetdima.datascanner.scan.common.connectors.ConnectorS3
 import ru.packetdima.datascanner.ui.extensions.color
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -93,6 +97,16 @@ fun MainScreenTaskCard(taskEntity: TaskEntityViewModel, currentTime: Instant) {
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            when(taskEntity.dbTask.connector) {
+                is ConnectorS3 -> {
+                    Icon(
+                        painter = painterResource(Res.drawable.aws_s3),
+                        contentDescription = "AWS S3",
+                        modifier = Modifier
+                            .size(32.dp)
+                    )
+                }
+            }
             Text(
                 modifier = Modifier
                     .weight(0.5f),
@@ -106,7 +120,7 @@ fun MainScreenTaskCard(taskEntity: TaskEntityViewModel, currentTime: Instant) {
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 if (state != TaskState.COMPLETED) {
-                    if(busy || state in setOf(TaskState.SEARCHING, TaskState.LOADING, TaskState.PENDING)) {
+                    if(busy || state in setOf(TaskState.SEARCHING, TaskState.LOADING)) {
                         CircularProgressIndicator(
                             modifier = Modifier
                                 .size(40.dp)
@@ -123,6 +137,7 @@ fun MainScreenTaskCard(taskEntity: TaskEntityViewModel, currentTime: Instant) {
                                             scanService.stopTask(taskEntity)
 
                                         TaskState.STOPPED -> scanService.resumeTask(taskEntity)
+                                        TaskState.PENDING -> scanService.startTask(taskEntity)
                                         else -> scanService.rescanTask(taskEntity)
                                     }
                                 },
@@ -130,8 +145,8 @@ fun MainScreenTaskCard(taskEntity: TaskEntityViewModel, currentTime: Instant) {
                         ) {
                             Icon(
                                 imageVector = when (state) {
-                                    TaskState.SEARCHING, TaskState.SCANNING, TaskState.LOADING, TaskState.PENDING -> Icons.Outlined.Pause
-                                    TaskState.STOPPED -> Icons.Outlined.PlayArrow
+                                    TaskState.SEARCHING, TaskState.SCANNING, TaskState.LOADING -> Icons.Outlined.Pause
+                                    TaskState.STOPPED, TaskState.PENDING -> Icons.Outlined.PlayArrow
                                     else -> Icons.Outlined.RestartAlt
                                 },
                                 contentDescription = null

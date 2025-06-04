@@ -12,6 +12,7 @@ viewmodel = "2.8.4"
 filekit = "0.10.0-beta03"
 fastexcel = "0.18.4"
 flyway = "11.4.1"
+aws = "1.4.92"
 
 [libraries]
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
@@ -65,6 +66,8 @@ koin-test-junit4 = { module = "io.insert-koin:koin-test-junit4", version.ref = "
 lifecycle-viewmodel = { module ="org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "viewmodel" }
 
 kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
+
+aws-s3 = { module = "aws.sdk.kotlin:s3", version.ref = "aws" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

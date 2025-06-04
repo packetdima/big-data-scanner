@@ -41,7 +41,7 @@ fun ScanTimeStatItem(
                 fontSize = 14.sp,
                 letterSpacing = 0.1.sp
             )
-        } else if (pausedAt != null && state == TaskState.STOPPED) {
+        } else if (pausedAt != null && (state == TaskState.STOPPED || state == TaskState.PENDING)) {
             Text(
                 text = stringResource(
                     resource = Res.string.Task_PausedAt,

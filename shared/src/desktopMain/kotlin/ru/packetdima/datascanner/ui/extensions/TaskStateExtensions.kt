@@ -11,16 +11,16 @@ import ru.packetdima.datascanner.db.models.TaskState
 
 @Composable
 fun TaskState.color() = when (this) {
-    TaskState.LOADING, TaskState.PENDING, TaskState.SCANNING, TaskState.SEARCHING -> MaterialTheme.colorScheme.primary
+    TaskState.LOADING, TaskState.SCANNING, TaskState.SEARCHING -> MaterialTheme.colorScheme.primary
     TaskState.COMPLETED -> MaterialTheme.colorScheme.tertiary
-    TaskState.STOPPED -> MaterialTheme.colorScheme.secondary
+    TaskState.STOPPED, TaskState.PENDING -> MaterialTheme.colorScheme.secondary
     TaskState.FAILED -> MaterialTheme.colorScheme.error
 }
 
 @Composable
 fun TaskState.icon() = when (this) {
-    TaskState.LOADING, TaskState.PENDING, TaskState.SCANNING, TaskState.SEARCHING -> Icons.Outlined.PlayArrow
+    TaskState.LOADING, TaskState.SCANNING, TaskState.SEARCHING -> Icons.Outlined.PlayArrow
     TaskState.COMPLETED -> Icons.Outlined.DoneAll
-    TaskState.STOPPED -> Icons.Outlined.Pause
+    TaskState.STOPPED, TaskState.PENDING -> Icons.Outlined.Pause
     TaskState.FAILED -> Icons.Outlined.Warning
 }

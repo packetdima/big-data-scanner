@@ -17,7 +17,6 @@ import ru.packetdima.datascanner.db.models.TaskFileScanResults
 import ru.packetdima.datascanner.db.models.TaskFiles
 import ru.packetdima.datascanner.db.models.TaskState
 import ru.packetdima.datascanner.scan.common.files.FileType
-import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.system.measureTimeMillis
@@ -109,7 +108,7 @@ class ScanThread : KoinComponent {
 
                 val fileId = dbFile[TaskFiles.id].value
                 val filePath = dbFile[TaskFiles.path]
-                val fileObject = File(filePath)
+                val fileObject = taskEntity.dbTask.connector.getFile(filePath)
                 val detectFunctions = database.transaction {
                     taskEntity.dbTask.lastFileDate = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
 
